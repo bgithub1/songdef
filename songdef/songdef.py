@@ -9,6 +9,8 @@ import numpy as np
 from enum import Enum
 import copy
 import pdb
+import inspect
+
 
 
 _SHARP = '#'
@@ -359,7 +361,7 @@ class MeasureFraction():
         return f"{l}\n{c}"
         
 class Measure():
-    def __init__(self,measure_fraction_list: list=None):
+    def __init__(self,measure_fraction_list: list=None,beats:int=32):
         # what kind of obect is measure_fraction_list
         self.measure_fraction_list = []
         if type(measure_fraction_list) == list:
@@ -368,13 +370,14 @@ class Measure():
         else:
             # measure_fraction_list is a tuple, MeasureFraction instance, or a Chord
             self.add_fraction(measure_fraction_list)
+        self.beats = beats
             
     def add_fraction(self,mf):
             if (type(mf) == MeasureFraction) or (issubclass(type(mf),MeasureFraction)):
                 self.measure_fraction_list.append(mf)
             elif type(mf)==tuple:
                 # it's a tuple
-                self.measure_fraction_list.append(MeasureFraction(mf[0],mf[1] if len(mf)>1 else 32))
+                self.measure_fraction_list.append(MeasureFraction(mf[0],mf[1] if len(mf)>1 else self.beats))
             elif (type(mf)==Chord) or (issubclass(type(mf),Chord)) :
                 self.measure_fraction_list.append(MeasureFraction(mf))
             else:
@@ -467,9 +470,14 @@ class SongPart():
         return ret   
     
 class Song():
-    def __init__(self,song_parts:list):
+    def __init__(self,song_parts:list,title=None):
         self.song_parts = song_parts
+        self.title = title
     def print_song(self,key):
+        t = f"************************************* {self.title} *************************************"
+        l = "-" * len(t)
+        print(t)
+        print(l)
         for i in range(len(self.song_parts)):
             sp = self.song_parts[i]
             sp.print_song(key)
@@ -487,6 +495,17 @@ class Song():
             if len(results)>0:
                 r.extend(results)
         return r
+
+    def name(self):
+        ans = []
+        frame = inspect.currentframe().f_back
+        tmp = frame.f_globals 
+        tmp.update(frame.f_locals)
+        for k, var in tmp.items():
+            if isinstance(var, self.__class__):
+                if hash(self) == hash(var):
+                    ans.append(k)
+        return ans
 
 
 # In[5]:
