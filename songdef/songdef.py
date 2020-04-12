@@ -41,7 +41,7 @@ def next_note(key,note,up_down=1):
         key2 = key2 + key[1]
     
     key_array = KEYS[key.upper()]
-    i = key_array.index_of(note) + up_down
+    i = key_array.index(note) + up_down
     if i > 7:
         next_i = 1
     elif i<1:
@@ -119,6 +119,34 @@ class Emb():
         return False
     def __ne__(self,other):
         return not self.__eq__(other)
+
+def handle_double_shfl(note_string):
+    ns = note_string
+    fs = _FLAT+_SHARP
+    sf = _SHARP+_FLAT
+    ss  = _SHARP+_SHARP
+    ff = _FLAT+_FLAT
+    if fs in note_string:
+        ns = note_string.replace(fs,'')
+    elif sf in note_string:
+        ns = note_string.replace(sf,'')
+    elif ss in note_string:
+        n = note_string[0]
+        # move n to the next letter in the key of C
+        cnotes = KEYS['C']
+        cindex = cnotes.index(n)
+        new_cindex = 0 if cindex>=7 else cindex+1
+        new_n = cnotes[new_cindex]
+        ns = note_string.replace(n+ss,new_n)
+    elif ff in note_string:
+        n = note_string[0]
+        # move n to the next letter in the key of C
+        cnotes = KEYS['C']
+        cindex = cnotes.index(n)
+        new_cindex = 7 if cindex<=0 else cindex-1
+        new_n = cnotes[new_cindex]
+        ns = note_string.replace(n+ff,new_n)
+    return ns
         
         
 class Chord():
@@ -129,60 +157,76 @@ class Chord():
                  emb1: Emb=None,
                  emb2: Emb=None,
                  bass_num: int=None,
-                 bass_shfl: SharpFlat=None,
-                 key=None):
+                 bass_shfl: SharpFlat=None):
         self.chnum = chnum
         self.shfl = shfl
         self.majmin = majmin
         self.emb1 = emb1
         self.emb2 = emb2
-        self.bass_note = None
+#         self.bass_note = None
         self.bass_num = bass_num
-        self.bass_note = str(self.bass_num)
+#         if bass_num is not None:
+#             self.bass_note = str(self.bass_num)
         self.bass_shfl = bass_shfl
-        self.key = self.change_key(key)
+#         self.key = key
+#         self.key = self.change_key(key)
 
-    def change_key(self,key):
-        self.chnote = None
-        self.key = key
-        if key is not None :
-            key2 = key[0].upper() 
-            if len(key)>1:
-                # there may be a sharp or flat
-                key2 = key2 + key[1]
-                self.key = key2 # format key string properly, with first char capital
-            key_array = KEYS[self.key]
-            self.chnote = key_array[self.chnum-1]
-        if self.bass_num is not None:
-            if key is not None :
-                self.bass_note = key_array[self.bass_num-1]
-            else:
-                self.bass_note = str(self.bass_num)
-        else:
-            self.bass_note = None
+#     def change_key(self,key):
+#         self.chnote = None
+#         self.key = key
+#         if key is not None :
+#             key2 = key[0].upper() 
+#             if len(key)>1:
+#                 # there may be a sharp or flat
+#                 key2 = key2 + key[1]
+#                 self.key = key2 # format key string properly, with first char capital
+#             key_array = KEYS[self.key]
+# #             sf = '' if self.shfl is None else str(self.shfl)
+#             self.chnote = key_array[self.chnum-1] #+ sf
+#             
+#         if self.bass_num is not None:
+#             if key is not None :
+#                 self.bass_note = key_array[self.bass_num-1]
+#             else:
+#                 self.bass_note = str(self.bass_num)
+#         else:
+#             self.bass_note = None
             
-    def __str__(self):
-        bass_note = self.bass_note
-        bass_note = '/' + str(bass_note) if bass_note is not None else ''
-        bass_shfl = self.bass_shfl if self.bass_shfl is not None else ''
+    def to_string(self,key=None):
+        bass_note = None if ((key is None) or (self.bass_num is None)) else KEYS[key][self.bass_num-1]
+        bass_note = '/' + bass_note if bass_note is not None else ''
+        bass_shfl = str(self.bass_shfl) if self.bass_shfl is not None else ''
         bn = bass_note + bass_shfl
         bn = bn.strip()
         emb1 = str(self.emb1) if self.emb1 is not None else ''
         emb2 = str(self.emb2) if self.emb2 is not None else ''
-        chn = self.chnum if self.chnote is None else self.chnote
+#         chn = self.chnum if self.chnote is None else self.chnote
         mn = str(self.majmin) if self.majmin is not None else ''
         mn = mn.lower()
-        # handle sharp flat
-        shfl = ''
-        if self.shfl is not None:
-            if str(chn) in '1234567':
-                chn = str(chn) + str(self.shfl)
-            else:
-                if self.shfl == SharpFlat.FLAT:
-                    if _SHARP in str(chn):
-                        chn = chn.replace(_SHARP,'')
-                    elif _FLAT in str(chn):
-                        chn = next_note(self.key,chn,up_down=-1)
+        # handle getting note
+        shfl = '' if self.shfl is None else str(self.shfl)
+        if key is None:
+            chn = str(self.chnum + shfl)
+        else:
+            chn = KEYS[key][self.chnum-1]
+            # handle sharp flat
+            chn = handle_double_shfl(chn+shfl)
+#             if self.shfl is not None:
+#                 # case 1, the key is None
+#                 if self.shfl == SharpFlat.FLAT:
+#                     if _SHARP in chn:
+#                         chn = chn.replace(_SHARP,'')
+#                     elif _FLAT in chn:
+#                         chn = next_note(key,chn,up_down=-1)
+#                     else:
+#                         chn = chn + str(self.shfl)
+#                 elif self.shfl == SharpFlat.SHRP:
+#                     if _SHARP in chn:
+#                         chn = next_note(key,chn,up_down=1)
+#                     elif _FLAT in chn:
+#                         chn = chn.replace(_FLAT,'')
+#                     else:
+#                         chn = chn + str(self.shfl)
                         
         r =  f"{chn}{mn}{emb1}{emb2}{bn}".strip()
         return r
@@ -295,25 +339,6 @@ class Chord():
         return not self.__eq__(other)
 
 
-# In[3]:
-
-
-def test_emb():
-    e1 = Emb(5,shfl=SharpFlat.SHRP)
-    e2 = Emb(5)
-    assert(e1>=e2)
-    assert(not e1<=e2)
-    assert(e1>e2)
-    assert(not e1<e2)
-
-    assert(not e2>=e1)
-    assert(e2<=e1)
-    assert(not e2>e1)
-    assert(e2<e1)
-
-
-# In[4]:
-
 
 class Major(Chord):
     def __init__(self,chnum,**kwargs):
@@ -352,10 +377,11 @@ class MeasureFraction():
         self.num_32nds=num_32nds
     def to_string(self,key):
         chord = copy.deepcopy(self.chord)
-        chord.change_key(key)
+#         chord.change_key(key)
+#         chord.key = key
         
         l = "_" * self.num_32nds
-        c = str(chord).replace(' ','')
+        c = chord.to_string(key).replace(' ','')
         c = c + " " * (len(l) - len(c))
         c = c[0:len(l)]
         return f"{l}\n{c}"
@@ -511,54 +537,16 @@ class Song():
 # In[5]:
 
 
-def test_chords():
-    onech = Major(1,key='D')
-    fourchmaj7 = Major7(4,key='D')
-    twomin7 = Chord(2,majmin=MajMin.MIN,emb1=7,key='D')
-    threemin7 = Chord(3,majmin=MajMin.MIN,emb1=7,key='D')
-    sixmin7 = Minor7(6,key='D')
-    threeflatmin7 = Chord(3,shfl=SharpFlat.FLAT,majmin=MajMin.MIN,emb1=7,key='D')
-    sevenminor7f5 = Minor7f5(7,key='D')
-    assert(str(twomin7)=='Emin7')
-    assert(str(threemin7)=='F#min7')
-    assert(str(onech)=='D')
-    assert(str(fourchmaj7)=='Gmaj7')
-    assert(str(sixmin7)=='Bmin7')
-    assert(str(sevenminor7f5)=='C#min7f5')
-    
-    m1=Major7(4,key='D')
-    m2=Major7(3,key='D')
-    m3=Major7(4,key='D')
-
-    assert(m1.__gt__(m2))
-    assert(m1.__ge__(m2))
-    assert(not m2.__gt__(m1))
-
-    assert(m2.__lt__(m1))
-    assert(m2.__le__(m1))
-    assert(not m1.__lt__(m2))
-
-    assert(m1.__ge__(m3))
-    assert(m1.__le__(m3))
-    assert(not m1.__lt__(m3))
-    assert(m3.__ge__(m1))
-    assert(m3.__le__(m1))
-    assert(not m3.__lt__(m1))
-    assert(m3.__eq__(m1))
-    
-    m4 = Minor7(7,key='C')
-    m5 = Minor7f5(7,key='C')
-    assert(m5>m4)
     
 
 
 def diatonic_triad_chords():
     diatonic_triads = [Major,Minor,Minor,Major,Major,Minor]
-    return [diatonic_triads[i](i+1,key='Ef') for i in range(len(diatonic_triads))]
+    return [diatonic_triads[i](i+1) for i in range(len(diatonic_triads))]
 
 def diatonic_chords():
     diatonic = [Major7,Minor7,Minor7,Major7,Dom7,Minor7,Minor7f5]
-    return [diatonic[i](i+1,key='E') for i in range(len(diatonic))]
+    return [diatonic[i](i+1) for i in range(len(diatonic))]
 
 _diatonic_triads = diatonic_triad_chords()
 _diatonic_chords = diatonic_chords()

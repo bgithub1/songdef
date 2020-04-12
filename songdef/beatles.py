@@ -182,11 +182,11 @@ _all_songs = [(across_the_universe(),'D'),
 
 
 if __name__=='__main__':
+    all_you_need_is_love().print_song('G')
     
-    for s in _all_songs:
-#         print(f"------------- {s[0].title} -------------------")
-        s[0].print_song(s[1])
-        print('.')
-        print('.')
-        print('.')
+#     for s in _all_songs:
+#         s[0].print_song(s[1])
+#         print('.')
+#         print('.')
+#         print('.')
 
