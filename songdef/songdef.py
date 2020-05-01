@@ -17,6 +17,8 @@ _SHARP = '#'
 _FLAT = 'f'
 _PLUS = '+'
 _FSP = [_FLAT,_SHARP,_PLUS]
+_SHARP_FLAT = _SHARP+_FLAT
+_FLAT_SHARP = _FLAT+_SHARP
 
 # define keys using circle of 4ths
 KEYS = {
@@ -163,34 +165,8 @@ class Chord():
         self.majmin = majmin
         self.emb1 = emb1
         self.emb2 = emb2
-#         self.bass_note = None
         self.bass_num = bass_num
-#         if bass_num is not None:
-#             self.bass_note = str(self.bass_num)
         self.bass_shfl = bass_shfl
-#         self.key = key
-#         self.key = self.change_key(key)
-
-#     def change_key(self,key):
-#         self.chnote = None
-#         self.key = key
-#         if key is not None :
-#             key2 = key[0].upper() 
-#             if len(key)>1:
-#                 # there may be a sharp or flat
-#                 key2 = key2 + key[1]
-#                 self.key = key2 # format key string properly, with first char capital
-#             key_array = KEYS[self.key]
-# #             sf = '' if self.shfl is None else str(self.shfl)
-#             self.chnote = key_array[self.chnum-1] #+ sf
-#             
-#         if self.bass_num is not None:
-#             if key is not None :
-#                 self.bass_note = key_array[self.bass_num-1]
-#             else:
-#                 self.bass_note = str(self.bass_num)
-#         else:
-#             self.bass_note = None
             
     def to_string(self,key=None):
         bass_note = None if ((key is None) or (self.bass_num is None)) else KEYS[key][self.bass_num-1]
@@ -198,6 +174,7 @@ class Chord():
         bass_shfl = str(self.bass_shfl) if self.bass_shfl is not None else ''
         bn = bass_note + bass_shfl
         bn = bn.strip()
+        bn = bn.replace(_SHARP_FLAT,'').replace(_FLAT_SHARP,'')
         emb1 = str(self.emb1) if self.emb1 is not None else ''
         emb2 = str(self.emb2) if self.emb2 is not None else ''
 #         chn = self.chnum if self.chnote is None else self.chnote
@@ -390,7 +367,7 @@ class Measure():
     def __init__(self,measure_fraction_list: list=None,beats:int=32):
         # what kind of obect is measure_fraction_list
         self.measure_fraction_list = []
-        if type(measure_fraction_list) == list:
+        if type(measure_fraction_list) == list or type(measure_fraction_list)==np.ndarray:
             for mf in measure_fraction_list:
                 self.add_fraction(mf)
         else:
@@ -495,9 +472,28 @@ class SongPart():
                 ret.append(ac_i)
         return ret   
     
+    def find_bass_pattern(self,bass_pattern:list):
+        ac = self.all_chords()
+        plen = len(bass_pattern)
+        ret = []
+        for i in range(0,len(ac)-plen):
+            # get chords from ac
+            ac_i = ac[i:i+plen]            
+            ac_i_is_pattern = True
+            for j in range(plen):
+                bn = ac_i[j].chnum if ac_i[j].bass_num is None else ac_i[j].bass_num
+                if bn != bass_pattern[j]:
+                    ac_i_is_pattern = False
+                    
+            if ac_i_is_pattern:
+                ret.append(ac_i)
+        return ret   
+    
 class Song():
     def __init__(self,song_parts:list,title=None):
         self.song_parts = song_parts
+        if type(self.song_parts)==np.ndarray:
+            self.song_parts = self.song_parts.tolist()
         self.title = title
     def print_song(self,key):
         t = f"************************************* {self.title} *************************************"
@@ -518,6 +514,14 @@ class Song():
         r = []
         for sp in self.song_parts:
             results = sp.find_song_pattern(chord_pattern)
+            if len(results)>0:
+                r.extend(results)
+        return r
+
+    def find_bass_pattern(self,bass_pattern):
+        r = []
+        for sp in self.song_parts:
+            results = sp.find_bass_pattern(bass_pattern)
             if len(results)>0:
                 r.extend(results)
         return r
@@ -613,7 +617,62 @@ class Diatr7(Minorf5):
         
         
                 
+# maps
+DICT_MAJMIN = {'+':MajMin.MAJ,'-':MajMin.MIN,'d':MajMin.DIM,'none':None,'nan':None}
+DICT_SHFL = {'-':SharpFlat.FLAT,'+':SharpFlat.SHRP,'none':None,'nan':None}
 
+def _make_measure(dfs_sp):
+    if dfs_sp is None or len(dfs_sp)<1:
+        return pd.DataFrame()
+    pto = dfs_sp.iloc[0].part_type_ordered
+    beats = dfs_sp.beats.sum()
+    m = None
+    try:
+        m = Measure(dfs_sp.fraction.values,beats=beats)
+    except Exception as e:
+        print(e)
+    return pd.DataFrame({'part_type_ordered':[pto],'measure':[m]})
+
+def _make_songpart(dfm):
+    if dfm is None or len(dfm)<1:
+        return pd.DataFrame()
+    pto = dfm.iloc[0].part_type_ordered
+    sp = SongPart(dfm.measure.values,pto)
+    return pd.DataFrame({'part_type_ordered':[pto],'song_part':[sp]})
+    
+
+def song_from_csv(df_song,title):
+    dfs = df_song.copy()
+    dfs.song_part2 = dfs.song_part2.fillna('')
+#     dfs['part_type'] = dfs.apply(lambda r:r.song_part1 + ('' if len(r.song_part2) <1 else f"_{r.song_part2}"),axis=1) 
+    dfs['part_type'] = dfs.song_part1 
+    part_types = dfs.part_type.unique()
+    part_types_ordered = [str(i) + "_" + part_types[i] for i in range(len(part_types))]
+    df_pto = pd.DataFrame({'part_type':part_types,'part_type_ordered':part_types_ordered})
+    dfs = dfs.merge(df_pto,on='part_type',how='inner')
+    dfs = dfs.replace({np.nan: None})
+    dfs['chnum'] = dfs.note
+    dfs.majmin = dfs.majmin.apply(lambda v: DICT_MAJMIN[str(v).lower()])
+    dfs.shfl = dfs.shfl.apply(lambda v: DICT_SHFL[str(v).lower()])
+    dfs.bass_shfl = dfs.bass_shfl.apply(lambda v: DICT_SHFL[str(v).lower()])
+    dfs.emb1_shfl = dfs.emb1_shfl.apply(lambda v: DICT_SHFL[str(v).lower()])
+    dfs.emb2_shfl = dfs.emb2_shfl.apply(lambda v: DICT_SHFL[str(v).lower()])
+    dfs['chord'] = dfs.apply(lambda r:Chord(
+            int(r.chnum),
+            shfl=r.shfl,
+            majmin=r.majmin,
+            emb1=None if r.emb1_num is None else Emb(int(r.emb1_num),r.emb1_shfl),
+            emb2=None if r.emb2_num is None else Emb(int(r.emb2_num),r.emb2_shfl),
+            bass_num = None if r.bass_num is None else int(r.bass_num),
+            bass_shfl = r.bass_shfl
+        ),axis=1)
+    dfs['fraction'] = dfs.apply(lambda r:MeasureFraction(r.chord,num_32nds=r.beats),axis=1)
+    dfs_fractions = dfs[['part_type_ordered','measure','fraction','beats']]
+    dfs_measures = dfs_fractions.groupby(['part_type_ordered','measure'],as_index=False).apply(_make_measure)
+    df_parts = dfs_measures.groupby('part_type_ordered',as_index=False).apply(_make_songpart)
+    song = Song(df_parts.song_part.values,title)
+    return song
+    
 
 
 

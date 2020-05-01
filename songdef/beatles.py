@@ -430,3 +430,10 @@ if __name__=='__main__':
             for pattern in match_array:
                 print([c.to_string(key) for c in pattern])
         
+    bass_pattern = [1,7,6,5]
+    for song,key in _all_songs:
+        match_array = song.find_bass_pattern(bass_pattern)
+        if len(match_array)>0:
+            print(song.title)
+            for pattern in match_array:
+                print([c.to_string(key) for c in pattern])
