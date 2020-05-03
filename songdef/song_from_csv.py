@@ -17,10 +17,15 @@ import songdef as sd
 if __name__== '__main__':
 #     c = sd.Chord(1,bass_num=7,bass_shfl=sd.SharpFlat.FLAT)
 #     print(c.to_string('D'))
-    song_def = input('Enter Song Name xlsx File w/o the xlsx, followed by a key (e.g.: all_my_loving,E): ' )
-    if song_def is not None and len(song_def)>0:
-        song_name,key = song_def.split(',')
-        df_song = pd.read_excel(f'./songxlsx/{song_name}.xlsx',sheet_name='songcsv')
-        sd.song_from_csv(df_song,song_name).print_song(key)
+    if len(sys.argv)>1:
+        song_name,key = sys.argv[1].split(',')
+    else:
+        song_def = input('Enter Song Name xlsx File w/o the xlsx, followed by a key (e.g.: all_my_loving,E): ' )
+        if song_def is not None and len(song_def)>0:
+            song_name,key = song_def.split(',')
+        else:
+            print("bad input: {song_def}")
+    df_song = pd.read_excel(f'./songxlsx/{song_name}.xlsx',sheet_name='songcsv')
+    sd.song_from_csv(df_song,song_name).print_song(key)
     
     

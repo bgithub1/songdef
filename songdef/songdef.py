@@ -20,6 +20,7 @@ _FSP = [_FLAT,_SHARP,_PLUS]
 _SHARP_FLAT = _SHARP+_FLAT
 _FLAT_SHARP = _FLAT+_SHARP
 
+
 # define keys using circle of 4ths
 KEYS = {
     'C':['C','D','E','F','G','A','B'],
@@ -150,6 +151,9 @@ def handle_double_shfl(note_string):
         ns = note_string.replace(n+ff,new_n)
     return ns
         
+# maps for 
+DICT_MAJMIN = {'+':MajMin.MAJ,'-':MajMin.MIN,'d':MajMin.DIM,'none':None,'nan':None}
+DICT_SHFL = {'-':SharpFlat.FLAT,'+':SharpFlat.SHRP,'none':None,'nan':None}
         
 class Chord():
     def __init__(self,
@@ -617,9 +621,6 @@ class Diatr7(Minorf5):
         
         
                 
-# maps
-DICT_MAJMIN = {'+':MajMin.MAJ,'-':MajMin.MIN,'d':MajMin.DIM,'none':None,'nan':None}
-DICT_SHFL = {'-':SharpFlat.FLAT,'+':SharpFlat.SHRP,'none':None,'nan':None}
 
 def _make_measure(dfs_sp):
     if dfs_sp is None or len(dfs_sp)<1:
